@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Family {
+  id        String   @id @default(uuid())
+  name      String
+  inviteCode String   @unique @default(cuid())
+  adminId   String
+  users     User[]
+  tasks     Task[]
+  createdAt DateTime @default(now())
+}
+
+model User {
+  id           String           @id @default(uuid())
+  email        String           @unique
+  password     String
+  name         String
+  birthDate    DateTime
+  familyId     String?
+  family       Family?          @relation(fields: [familyId], references: [id])
+  assignments  TaskAssignment[]
+  createdAt    DateTime         @default(now())
+}
+
+model Task {
+  id            String           @id @default(uuid())
+  title         String
+  description   String?
+  familyId      String
+  family        Family           @relation(fields: [familyId], references: [id])
+  isRotation    Boolean          @default(true)
+  frequencyDays Int // Can be interpreted as interval in days, or N times per week depending on logic
+  assignments   TaskAssignment[]
+  createdAt     DateTime         @default(now())
+}
+
+model TaskAssignment {
+  id            String     @id @default(uuid())
+  taskId        String
+  task          Task       @relation(fields: [taskId], references: [id])
+  userId        String
+  user          User       @relation(fields: [userId], references: [id])
+  scheduledDate DateTime
+  completedAt   DateTime?
+  isRollover    Boolean    @default(false)
+  status        TaskStatus @default(PENDING)
+
+  @@index([scheduledDate, status])
+}
+
+enum TaskStatus {
+  PENDING
+  COMPLETED
+  SKIPPED
+}
